@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Patrick's Treasure Chest Pushing Game</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+  <link rel="stylesheet" href="mycss.css">
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+
+<script>
+
+document.addEventListener('touchstart', handleTouchStart, false);        
+document.addEventListener('touchmove', handleSwipeMove, false);
+document.addEventListener('tap', handleTapMove, false);
+
+var posx = 11, posy = 3;
+var maxx = 20, maxy = 15;
+var moveableBarrels, placedBarrels, steps, pushes;
+var tileMyman = '<img src="myman.gif">';
+var tileFloor = '<img src="floor.gif">'; // ' ' = floor
+var tileBrick = '<img src="brick.gif">'; // 'W' = brick wall
+var tileGoalf = '<img src="goalf.gif">'; // 'G' = goal
+var tileChest = '<img src="chest.gif">'; // 'B' = barrel = chest
+var tileGoalc = '<img src="goalc.gif">'; // 'C' = goal with chest on top
+var tileGoalm = '<img src="goalm.gif">'; //  goal with man on top
+var map;
+var level = 1;
+var xDown = null;                                                        
+var yDown = null;                                                        
+
+function handleTouchStart(evt) {                                         
+    xDown = evt.touches[0].clientX;                                      
+    yDown = evt.touches[0].clientY;                                      
+};                                                
+
+function handleSwipeMove(evt) {
+    if ( ! xDown || ! yDown ) {
+        return;
+    }
+
+    var xUp = evt.touches[0].clientX;                                    
+    var yUp = evt.touches[0].clientY;
+	
+	// Move according to swipe
+    var xDiff = xDown - xUp;
+    var yDiff = yDown - yUp;
+
+    if (Math.abs(xDiff) > Math.abs(yDiff)) { // dx is the most significant 
+        if (xDiff > 0) {
+            push(-1,0); // left swipe 
+        } else {
+            push(1,0); // right swipe
+        }                       
+    } else {
+        if (yDiff > 0) {
+            push(0,-1); // up swipe
+        } else { 
+            push(0,1); // down swipe
+        }                                                                 
+    }
+	//push(dx, dy);
+
+	xUp = evt.touches[0].clientX;                                    
+    yUp = evt.touches[0].clientY;
+	
+    /* reset values */
+    xDown = null;
+    yDown = null;                                             
+};
+
+function handleTapMove(evt) {
+    var xUp = evt.touches[0].clientX;                                    
+    var yUp = evt.touches[0].clientY;
+
+	// Move according to tap
+    var dx = Math.round((xDown - (window.innerWidth  / 2 - 16 * (maxx + 1))) / 32 + 0.9) - posx;
+	var dy = Math.round((yDown - (window.innerHeight / 2 - 16 * (maxy + 1))) / 32 + 0.9) - posy;
+	
+	if (Math.abs(dx) == Math.abs(dy)){
+		// Click in diagonal --> impossible move! 
+		dx = 0;
+		dy = 0;
+	}
+	else if (Math.abs(dx) > Math.abs(dy)){
+		dy = 0;
+		if (dx > 0) dx = 1; else dx = -1;
+	}
+	else {
+		dx = 0;
+		if (dy > 0) dy = 1; else dy = -1;
+	}
+	push(dx, dy);
+		
+    /* reset values */
+    xDown = null;
+    yDown = null;                                             
+};
+
+function moveToCoord(event) {
+    var dx = Math.round((event.clientX - (window.innerWidth  / 2 - 16 * (maxx + 1))) / 32 + 0.9) - posx;
+	var dy = Math.round((event.clientY - (window.innerHeight / 2 - 16 * (maxy + 1))) / 32 + 0.9) - posy;
+	
+	if (Math.abs(dx) == Math.abs(dy)){
+		// Click in diagonal --> impossible move! 
+		dx = 0;
+		dy = 0;
+	}
+	else if (Math.abs(dx) > Math.abs(dy)){
+		dy = 0;
+		if (dx > 0) dx = 1; else dx = -1;
+	}
+	else {
+		dx = 0;
+		if (dy > 0) dy = 1; else dy = -1;
+	}
+	push(dx, dy);
+}
+
+function initiateBoard(){
+	var x = 0, y = 0;
+	var position = "", tile = "";
+	moveableBarrels = 0;
+	placedBarrels = 0;
+	steps = 0;
+	pushes = 0;
+	solveCount = 0;
+
+	if (level == 1)
+	map = 	[
+				[' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '],
+				[' ', ' ', ' ', ' ', ' ', 'W', 'W', 'W', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '],
+				[' ', ' ', ' ', ' ', ' ', 'W', ' ', 'W', 'W', 'W', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '],
+				[' ', ' ', ' ', ' ', ' ', 'W', ' ', ' ', ' ', 'W', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '],
+				[' ', ' ', ' ', ' ', ' ', 'W', 'B', ' ', ' ', 'W', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '],
+				[' ', ' ', ' ', 'W', 'W', 'W', ' ', ' ', 'B', 'W', 'W', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '],
+				[' ', ' ', ' ', 'W', ' ', ' ', 'B', ' ', 'B', ' ', 'W', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '],
+				[' ', 'W', 'W', 'W', ' ', 'W', ' ', 'W', 'W', ' ', 'W', ' ', ' ', ' ', 'W', 'W', 'W', 'W', 'W', 'W', ' '],
+				[' ', 'W', ' ', ' ', ' ', 'W', ' ', 'W', 'W', ' ', 'W', 'W', 'W', 'W', 'W', ' ', ' ', 'G', 'G', 'W', ' '],
+				[' ', 'W', ' ', 'B', ' ', ' ', 'B', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', 'G', 'G', 'W', ' '],
+				[' ', 'W', 'W', 'W', 'W', 'W', ' ', 'W', 'W', 'W', ' ', 'W', 'P', 'W', 'W', ' ', ' ', 'G', 'G', 'W', ' '],
+				[' ', ' ', ' ', ' ', ' ', 'W', ' ', ' ', ' ', ' ', ' ', 'W', 'W', 'W', 'W', 'W', 'W', 'W', 'W', 'W', ' '],
+				[' ', ' ', ' ', ' ', ' ', 'W', 'W', 'W', 'W', 'W', 'W', 'W', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '],
+				[' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '],
+				[' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '],
+				[' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ']
+			];
+
+	if (level == 2)
+	map = 	[
+				[' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', 'W', 'W', 'W', 'W', 'W', 'W', 'W', 'W', ' ', ' ', ' ', ' ', ' '],
+				[' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', 'W', ' ', ' ', ' ', ' ', ' ', ' ', 'W', ' ', ' ', ' ', ' ', ' '],
+				[' ', ' ', ' ', ' ', ' ', 'W', 'W', 'W', 'W', 'B', ' ', ' ', ' ', 'W', ' ', 'W', ' ', ' ', ' ', ' ', ' '],
+				[' ', ' ', ' ', ' ', ' ', 'W', ' ', ' ', ' ', ' ', ' ', ' ', ' ', 'W', 'B', 'W', ' ', ' ', ' ', ' ', ' '],
+				[' ', ' ', ' ', ' ', ' ', 'W', ' ', 'W', 'W', 'W', 'W', ' ', 'W', 'W', ' ', 'W', 'W', ' ', ' ', ' ', ' '],
+				[' ', ' ', ' ', ' ', ' ', 'W', ' ', ' ', ' ', ' ', 'B', ' ', ' ', ' ', 'B', ' ', 'W', ' ', ' ', ' ', ' '],
+				[' ', ' ', ' ', ' ', ' ', 'W', ' ', ' ', ' ', ' ', 'B', ' ', ' ', ' ', 'B', ' ', 'W', ' ', ' ', ' ', ' '],
+				[' ', ' ', ' ', ' ', ' ', 'W', ' ', ' ', 'B', 'B', 'B', 'B', 'B', ' ', ' ', ' ', 'W', ' ', ' ', ' ', ' '],
+				[' ', ' ', ' ', ' ', ' ', 'W', ' ', ' ', ' ', 'B', 'P', 'B', ' ', ' ', ' ', ' ', 'W', ' ', ' ', ' ', ' '],
+				[' ', ' ', ' ', ' ', ' ', 'W', 'W', 'W', 'W', 'W', ' ', 'W', 'W', 'W', 'W', 'W', 'W', ' ', ' ', ' ', ' '],
+				[' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', 'W', ' ', 'W', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '],
+				[' ', ' ', ' ', ' ', ' ', ' ', 'W', 'W', 'W', 'W', ' ', 'W', 'W', 'W', 'W', ' ', ' ', ' ', ' ', ' ', ' '],
+				[' ', ' ', ' ', ' ', ' ', ' ', 'W', 'G', 'G', ' ', ' ', ' ', 'G', 'G', 'W', ' ', ' ', ' ', ' ', ' ', ' '],
+				[' ', ' ', ' ', ' ', ' ', ' ', 'W', 'G', 'G', 'G', ' ', 'G', 'G', 'G', 'W', ' ', ' ', ' ', ' ', ' ', ' '],
+				[' ', ' ', ' ', ' ', ' ', ' ', 'W', 'W', 'W', 'G', 'G', 'G', 'W', 'W', 'W', ' ', ' ', ' ', ' ', ' ', ' '],
+				[' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', 'W', 'W', 'W', 'W', 'W', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ']
+			];
+
+	if (level == 3)
+	map = 	[
+				[' ', ' ', ' ', ' ', ' ', 'W', ' ', ' ', 'W', ' ', ' ', 'W', ' ', ' ', 'W', ' ', ' ', ' ', ' ', ' ', ' '],
+				[' ', ' ', ' ', ' ', ' ', ' ', 'W', ' ', ' ', 'W', ' ', 'W', ' ', 'W', ' ', ' ', ' ', ' ', ' ', 'B', ' '],
+				[' ', ' ', ' ', ' ', ' ', ' ', ' ', 'W', 'W', 'W', 'W', 'W', 'W', 'W', ' ', ' ', ' ', ' ', ' ', ' ', ' '],
+				[' ', ' ', ' ', ' ', ' ', ' ', 'W', ' ', ' ', ' ', ' ', ' ', ' ', ' ', 'W', ' ', ' ', ' ', ' ', ' ', ' '],
+				[' ', ' ', ' ', ' ', 'W', 'W', 'W', ' ', ' ', 'W', ' ', 'W', ' ', ' ', 'W', 'W', 'W', ' ', ' ', ' ', ' '],
+				[' ', ' ', ' ', 'W', 'W', 'G', 'G', ' ', 'W', 'W', ' ', 'W', 'W', ' ', 'W', 'G', 'W', 'W', ' ', ' ', ' '],
+				[' ', ' ', ' ', 'W', 'G', 'G', 'G', ' ', ' ', ' ', 'B', ' ', ' ', ' ', 'W', ' ', ' ', 'W', ' ', ' ', ' '],
+				[' ', ' ', ' ', 'W', 'G', 'G', 'G', ' ', ' ', 'B', 'B', 'B', ' ', ' ', ' ', ' ', ' ', 'W', ' ', ' ', ' '],
+				[' ', ' ', ' ', 'W', 'W', 'G', 'G', ' ', ' ', 'B', 'P', 'B', ' ', ' ', ' ', ' ', 'W', 'W', ' ', ' ', ' '],
+				[' ', ' ', ' ', ' ', 'W', 'W', 'W', ' ', ' ', 'B', 'B', 'B', ' ', ' ', ' ', 'W', 'W', ' ', ' ', ' ', ' '],
+				[' ', ' ', ' ', ' ', ' ', ' ', 'W', ' ', ' ', 'B', ' ', ' ', 'W', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '],
+				[' ', ' ', ' ', ' ', ' ', ' ', 'W', ' ', ' ', ' ', 'W', 'W', ' ', ' ', 'W', ' ', ' ', ' ', ' ', ' ', ' '],
+				[' ', ' ', ' ', ' ', ' ', ' ', ' ', 'W', ' ', ' ', ' ', ' ', ' ', ' ', 'W', ' ', ' ', ' ', ' ', ' ', ' '],
+				[' ', ' ', ' ', ' ', ' ', ' ', ' ', 'W', ' ', ' ', ' ', ' ', ' ', 'W', ' ', ' ', ' ', ' ', ' ', ' ', ' '],
+				[' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', 'W', 'W', 'W', 'W', 'W', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '],
+				[' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ']
+			];
+
+	if (level == 4)
+	map = 	[
+				[' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '],
+				[' ', ' ', ' ', ' ', ' ', ' ', ' ', 'W', 'W', 'W', 'W', 'W', 'W', 'W', 'W', 'W', ' ', ' ', ' ', ' ', ' '],
+				[' ', ' ', ' ', ' ', ' ', 'W', 'W', 'W', ' ', ' ', ' ', ' ', ' ', ' ', ' ', 'W', 'W', ' ', ' ', ' ', ' '],
+				[' ', ' ', ' ', ' ', ' ', 'W', ' ', 'B', ' ', 'W', ' ', ' ', ' ', ' ', 'B', ' ', 'W', ' ', ' ', ' ', ' '],
+				[' ', ' ', 'W', 'W', 'W', 'W', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', 'W', ' ', ' ', ' ', ' '],
+				[' ', 'W', 'W', ' ', ' ', ' ', ' ', 'W', ' ', 'W', ' ', 'W', 'W', 'W', 'W', 'W', 'W', ' ', ' ', ' ', ' '],
+				[' ', 'W', ' ', ' ', ' ', ' ', ' ', ' ', ' ', 'W', 'W', 'W', 'W', 'W', ' ', ' ', ' ', ' ', ' ', ' ', ' '],
+				[' ', 'W', ' ', ' ', ' ', 'W', 'W', 'W', ' ', 'W', 'W', ' ', ' ', 'W', ' ', ' ', ' ', ' ', ' ', ' ', ' '],
+				[' ', 'W', 'G', 'G', 'G', 'W', ' ', 'W', ' ', 'W', 'P', 'B', ' ', 'W', ' ', ' ', ' ', ' ', ' ', ' ', ' '],
+				[' ', 'W', 'W', 'W', 'W', 'W', ' ', 'W', ' ', 'W', ' ', 'W', ' ', 'W', ' ', ' ', ' ', ' ', ' ', ' ', ' '],
+				[' ', ' ', ' ', ' ', ' ', ' ', ' ', 'W', ' ', 'W', ' ', ' ', ' ', 'W', ' ', ' ', ' ', ' ', ' ', ' ', ' '],
+				[' ', ' ', ' ', ' ', ' ', ' ', 'W', 'W', ' ', 'W', 'W', 'W', ' ', 'W', 'W', ' ', ' ', ' ', ' ', ' ', ' '],
+				[' ', ' ', ' ', ' ', ' ', ' ', 'W', ' ', ' ', ' ', ' ', 'W', ' ', ' ', 'W', ' ', ' ', ' ', ' ', ' ', ' '],
+				[' ', ' ', ' ', ' ', ' ', ' ', 'W', ' ', ' ', ' ', ' ', ' ', ' ', ' ', 'W', ' ', ' ', ' ', ' ', ' ', ' '],
+				[' ', ' ', ' ', ' ', ' ', ' ', 'W', ' ', ' ', 'W', 'W', 'W', 'W', 'W', 'W', ' ', ' ', ' ', ' ', ' ', ' '],
+				[' ', ' ', ' ', ' ', ' ', ' ', 'W', 'W', 'W', 'W', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ']
+			];
+			
+	if (level == 5)
+	map = 	[
+				[' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '],
+				[' ', ' ', ' ', ' ', ' ', ' ', 'W', 'W', 'W', 'W', 'W', 'W', 'W', 'W', ' ', ' ', ' ', ' ', ' ', ' ', ' '],
+				[' ', ' ', ' ', ' ', ' ', ' ', 'W', ' ', ' ', ' ', ' ', ' ', ' ', 'W', ' ', ' ', ' ', ' ', ' ', ' ', ' '],
+				[' ', ' ', ' ', ' ', ' ', ' ', 'W', 'B', ' ', 'B', ' ', 'B', ' ', 'W', 'W', 'W', 'W', 'W', ' ', ' ', ' '],
+				[' ', ' ', ' ', ' ', ' ', 'W', 'W', ' ', ' ', ' ', 'B', ' ', ' ', 'W', ' ', ' ', ' ', 'W', ' ', ' ', ' '],
+				[' ', ' ', ' ', 'W', 'W', 'W', ' ', 'B', 'B', 'W', 'W', 'W', 'W', 'W', ' ', 'B', ' ', 'W', ' ', ' ', ' '],
+				[' ', ' ', ' ', 'W', ' ', ' ', ' ', ' ', ' ', 'W', 'G', 'G', ' ', 'W', 'B', ' ', ' ', 'W', ' ', ' ', ' '],
+				[' ', ' ', ' ', 'W', ' ', ' ', ' ', ' ', 'W', 'W', 'G', 'G', ' ', 'B', ' ', ' ', ' ', 'W', ' ', ' ', ' '],
+				[' ', ' ', ' ', 'W', ' ', ' ', ' ', ' ', 'W', 'G', 'G', 'G', ' ', ' ', 'B', 'B', ' ', 'W', ' ', ' ', ' '],
+				[' ', ' ', ' ', 'W', ' ', 'B', ' ', ' ', 'W', 'G', 'G', 'G', ' ', 'W', ' ', ' ', ' ', 'W', ' ', ' ', ' '],
+				[' ', ' ', ' ', 'W', 'W', 'W', 'W', ' ', 'W', 'W', 'G', 'G', ' ', 'W', 'W', 'W', 'W', 'W', ' ', ' ', ' '],
+				[' ', ' ', ' ', ' ', ' ', 'W', ' ', ' ', ' ', 'W', 'W', 'W', ' ', 'W', ' ', ' ', ' ', ' ', ' ', ' ', ' '],
+				[' ', ' ', ' ', ' ', ' ', 'W', ' ', ' ', ' ', ' ', ' ', ' ', ' ', 'W', ' ', ' ', ' ', ' ', ' ', ' ', ' '],
+				[' ', ' ', ' ', ' ', ' ', 'W', ' ', ' ', 'W', 'W', 'W', ' ', ' ', 'W', ' ', ' ', ' ', ' ', ' ', ' ', ' '],
+				[' ', ' ', ' ', ' ', ' ', 'W', 'W', 'W', 'W', ' ', 'W', 'W', 'W', 'W', ' ', ' ', ' ', ' ', ' ', ' ', ' '],
+				[' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ']
+			];
+					
+	for(x=0;x<=maxx;x++){
+		for(y=0;y<=maxy;y++){
+			position = "r" + y + "c" + x;
+			console.log(position + ":" + map[y][x]);
+			switch(map[y][x]){
+				case 'W': tile = tileBrick; break;
+				case 'G': tile = tileGoalf; break;
+				case 'B': tile = tileChest; moveableBarrels = moveableBarrels + 1; break;
+				case 'P': tile = tileMyman; map[y][x] = ' '; posx = x; posy = y; break;
+				default:  tile = tileFloor; break;
+			}
+			document.getElementById(position).innerHTML = tile;
+		}
+	}
+	
+	// place the man
+	position = "r" + posy + "c" + posx;
+	document.getElementById(position).innerHTML = tileMyman;
+	showScore();
+}
+
+function showScore(){
+	if (placedBarrels >= moveableBarrels){
+	    if (solveCount == 0) solveCount = steps;
+		document.getElementById("solved").innerHTML = " &nbsp; <B>Solved in </B>" + solveCount;
+	}
+	else {
+		document.getElementById("solved").innerHTML = " &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;";
+	}
+	document.getElementById("level").innerHTML = " &nbsp; <B>Level:</B> " + level;
+	document.getElementById("steps").innerHTML = " &nbsp; <B>Steps:</B> " + steps;
+	document.getElementById("pushes").innerHTML = " &nbsp; <B>Pushes:</B> " + pushes;
+	document.getElementById("placed").innerHTML = " &nbsp; <B>Placed:</B> " + placedBarrels;
+	document.getElementById("remain").innerHTML = " &nbsp; <B>Remain:</B> " + moveableBarrels;		
+}
+
+function push(dx, dy){
+	var newx = posx, newy = posy;
+	var nextx = newx, nexty = newy;
+	if (posx > 0    && dx == -1) {newx = posx - 1; nextx = newx - 1;}
+	if (posx < maxx && dx ==  1) {newx = posx + 1; nextx = newx + 1;} 
+	if (posy > 0    && dy == -1) {newy = posy - 1; nexty = newy - 1;}
+	if (posy < maxy && dy ==  1) {newy = posy + 1; nexty = newy + 1;}
+		
+	// should the man move?
+	if(newx != posx || newy != posy){
+		// are you trying to push a chest?
+		if (map[newy][newx] === 'B' || map[newy][newx] === 'C'){
+			// are you trying to push a chest our from the board?
+			if (nextx < 0 || nextx > maxx || nexty < 0 || nexty > maxy) {newy = posy; newx = posx;}
+			else {		
+				// can the chest be pushed?
+				if(map[nexty][nextx] === ' ' || map[nexty][nextx] === 'G'){
+					// move the chest
+					pushes = pushes + 1;
+					position = "r" + nexty + "c" + nextx;
+					switch(map[nexty][nextx]){
+						case 'G': document.getElementById(position).innerHTML = tileGoalc; map[nexty][nextx] = 'C'; placedBarrels = placedBarrels + 1; break;
+						default:  document.getElementById(position).innerHTML = tileChest; map[nexty][nextx] = 'B'; break;
+					}
+					// restore the previous position of the chest
+					position = "r" + newy + "c" + newx;
+					switch(map[newy][newx]){
+						case 'C': document.getElementById(position).innerHTML = tileGoalf; map[newy][newx] = 'G'; placedBarrels = placedBarrels - 1; break;
+						default:  document.getElementById(position).innerHTML = tileFloor; map[newy][newx] = ' '; break;
+					}
+				}
+			}
+		}
+	}
+
+	// should the man move?
+	if(newx != posx || newy != posy){		
+		// can the man move?
+		if (map[newy][newx] === ' ' || map[newy][newx] === 'G'){
+			steps = steps + 1;
+			
+			// paint the man at the new position
+			position = "r" + newy + "c" + newx;
+			switch(map[newy][newx]){
+				case 'G': document.getElementById(position).innerHTML = tileGoalm; break;
+				default:  document.getElementById(position).innerHTML = tileMyman; break;
+			}
+			
+			// clear the old position
+			position = "r" + posy + "c" + posx;
+			switch(map[posy][posx]){
+				case 'G': document.getElementById(position).innerHTML = tileGoalf; break;
+				default:  document.getElementById(position).innerHTML = tileFloor; break;
+			}
+			posx = newx;
+			posy = newy;
+		}
+	}
+	
+	showScore();
+}
+
+</script>
+</head>
+
+<body onload="initiateBoard()">
+<center>
+
+<table>
+<H2>Patrick's Treasure Chest Pushing Game</H2>
+<b>Use the arrow keys or tap the screen to move the alien around.<br>
+Push all chests to areas marked with red circles!<br>
+Click keys 1-2-3-4-5 or click buttons to select levels.</b></p>
+
+<table border=0 onmousedown="moveToCoord(event)">
+<tr><td id="r0c0"></td><td id="r0c1"></td><td id="r0c2"></td><td id="r0c3"></td><td id="r0c4"></td><td id="r0c5"></td><td id="r0c6"></td><td id="r0c7"><img src="brick.gif"></td><td id="r0c8"><img src="brick.gif"></td><td id="r0c9"><img src="brick.gif"></td><td id="r0c10"><img src="brick.gif"></td><td id="r0c11"><img src="brick.gif"></td><td id="r0c12"><img src="brick.gif"></td><td id="r0c13"><img src="brick.gif"></td><td id="r0c14"></td><td id="r0c15"></td><td id="r0c16"></td><td id="r0c17"></td><td id="r0c18"></td><td id="r0c19"></td><td id="r0c20"></td><td><center><button onclick="level=1; initiateBoard(); ">Level 1</button></center></td></tr>
+<tr><td id="r1c0"></td><td id="r1c1"></td><td id="r1c2"></td><td id="r1c3"></td><td id="r1c4"></td><td id="r1c5"></td><td id="r1c6"></td><td id="r1c7"><img src="brick.gif"></td><td id="r1c8"><img src="floor.gif"></td><td id="r1c9"><img src="floor.gif"></td><td id="r1c10"><img src="floor.gif"></td><td id="r1c11"><img src="floor.gif"></td><td id="r1c12"><img src="floor.gif"></td><td id="r1c13"><img src="brick.gif"></td><td id="r1c14"></td><td id="r1c15"></td><td id="r1c16"></td><td id="r1c17"></td><td id="r1c18"></td><td id="r1c19"></td><td id="r1c20"></td></tr>
+<tr><td id="r2c0"></td><td id="r2c1"></td><td id="r2c2"></td><td id="r2c3"></td><td id="r2c4"></td><td id="r2c5"></td><td id="r2c6"></td><td id="r2c7"><img src="brick.gif"></td><td id="r2c8"><img src="floor.gif"></td><td id="r2c9"><img src="floor.gif"></td><td id="r2c10"><img src="floor.gif"></td><td id="r2c11"><img src="floor.gif"></td><td id="r2c12"><img src="floor.gif"></td><td id="r2c13"><img src="brick.gif"></td><td id="r2c14"></td><td id="r2c15"></td><td id="r2c16"></td><td id="r2c17"></td><td id="r2c18"></td><td id="r2c19"></td><td id="r2c20"></td><td><center><button onclick="level=2; initiateBoard(); ">Level 2</button></center></td></tr>
+<tr><td id="r3c0"></td><td id="r3c1"></td><td id="r3c2"></td><td id="r3c3"></td><td id="r3c4"></td><td id="r3c5"></td><td id="r3c6"></td><td id="r3c7"><img src="brick.gif"></td><td id="r3c8"><img src="goalc.gif"></td><td id="r3c9"><img src="chest.gif"></td><td id="r3c10"><img src="floor.gif"></td><td id="r3c11"><img src="floor.gif"></td><td id="r3c12"><img src="floor.gif"></td><td id="r3c13"><img src="brick.gif"></td><td id="r3c14"></td><td id="r3c15"></td><td id="r3c16"></td><td id="r3c17"></td><td id="r3c18"></td><td id="r3c19"></td><td id="r3c20"></td></tr>
+<tr><td id="r4c0"></td><td id="r4c1"></td><td id="r4c2"></td><td id="r4c3"></td><td id="r4c4"></td><td id="r4c5"></td><td id="r4c6"></td><td id="r4c7"><img src="brick.gif"></td><td id="r4c8"><img src="goalm.gif"></td><td id="r4c9"><img src="floor.gif"></td><td id="r4c10"><img src="floor.gif"></td><td id="r4c11"><img src="floor.gif"></td><td id="r4c12"><img src="floor.gif"></td><td id="r4c13"><img src="brick.gif"></td><td id="r4c14"></td><td id="r4c15"></td><td id="r4c16"></td><td id="r4c17"></td><td id="r4c18"></td><td id="r4c19"></td><td id="r4c20"></td><td><center><button onclick="level=3; initiateBoard(); ">Level 3</button></center></td></tr>
+<tr><td id="r5c0"></td><td id="r5c1"></td><td id="r5c2"></td><td id="r5c3"></td><td id="r5c4"></td><td id="r5c5"></td><td id="r5c6"></td><td id="r5c7"><img src="brick.gif"></td><td id="r5c8"><img src="floor.gif"></td><td id="r5c9"><img src="floor.gif"></td><td id="r5c10"><img src="floor.gif"></td><td id="r5c11"><img src="floor.gif"></td><td id="r5c12"><img src="floor.gif"></td><td id="r5c13"><img src="brick.gif"></td><td id="r5c14"></td><td id="r5c15"></td><td id="r5c16"></td><td id="r5c17"></td><td id="r5c18"></td><td id="r5c19"></td><td id="r5c20"></td></tr>
+<tr><td id="r6c0"></td><td id="r6c1"></td><td id="r6c2"></td><td id="r6c3"></td><td id="r6c4"></td><td id="r6c5"></td><td id="r6c6"></td><td id="r6c7"><img src="brick.gif"></td><td id="r6c8"><img src="brick.gif"></td><td id="r6c9"><img src="brick.gif"></td><td id="r6c10"><img src="brick.gif"></td><td id="r6c11"><img src="brick.gif"></td><td id="r6c12"><img src="brick.gif"></td><td id="r6c13"><img src="brick.gif"></td><td id="r6c14"></td><td id="r6c15"></td><td id="r6c16"></td><td id="r6c17"></td><td id="r6c18"></td><td id="r6c19"></td><td id="r6c20"></td><td><center><button onclick="level=4; initiateBoard(); ">Level 4</button></center></td></tr>
+<tr><td id="r7c0"></td><td id="r7c1"></td><td id="r7c2"></td><td id="r7c3"></td><td id="r7c4"></td><td id="r7c5"></td><td id="r7c6"></td><td id="r7c7"></td><td id="r7c8"></td><td id="r7c9"></td><td id="r7c10"></td><td id="r7c11"></td><td id="r7c12"></td><td id="r7c13"></td><td id="r7c14"></td><td id="r7c15"></td><td id="r7c16"></td><td id="r7c17"></td><td id="r7c18"></td><td id="r7c19"></td><td id="r7c20"></td></tr>
+<tr><td id="r8c0"></td><td id="r8c1"></td><td id="r8c2"></td><td id="r8c3"></td><td id="r8c4"></td><td id="r8c5"></td><td id="r8c6"></td><td id="r8c7"></td><td id="r8c8"></td><td id="r8c9"></td><td id="r8c10"></td><td id="r8c11"></td><td id="r8c12"></td><td id="r8c13"></td><td id="r8c14"></td><td id="r8c15"></td><td id="r8c16"></td><td id="r8c17"></td><td id="r8c18"></td><td id="r8c19"></td><td id="r8c20"></td><td><center><button onclick="level=5; initiateBoard(); ">Level 5</button></center></td></tr>
+<tr><td id="r9c0"></td><td id="r9c1"></td><td id="r9c2"></td><td id="r9c3"></td><td id="r9c4"></td><td id="r9c5"></td><td id="r9c6"></td><td id="r9c7"></td><td id="r9c8"></td><td id="r9c9"></td><td id="r9c10"></td><td id="r9c11"></td><td id="r9c12"></td><td id="r9c13"></td><td id="r9c14"></td><td id="r9c15"></td><td id="r9c16"></td><td id="r9c17"></td><td id="r9c18"></td><td id="r9c19"></td><td id="r9c20"></td></tr>
+<tr><td id="r10c0"></td><td id="r10c1"></td><td id="r10c2"></td><td id="r10c3"></td><td id="r10c4"></td><td id="r10c5"></td><td id="r10c6"></td><td id="r10c7"></td><td id="r10c8"></td><td id="r10c9"></td><td id="r10c10"></td><td id="r10c11"></td><td id="r10c12"></td><td id="r10c13"></td><td id="r10c14"></td><td id="r10c15"></td><td id="r10c16"></td><td id="r10c17"></td><td id="r10c18"></td><td id="r10c19"></td><td id="r10c20"></td><td id="level"></td></tr>
+<tr><td id="r11c0"></td><td id="r11c1"></td><td id="r11c2"></td><td id="r11c3"></td><td id="r11c4"></td><td id="r11c5"></td><td id="r11c6"></td><td id="r11c7"></td><td id="r11c8"></td><td id="r11c9"></td><td id="r11c10"></td><td id="r11c11"></td><td id="r11c12"></td><td id="r11c13"></td><td id="r11c14"></td><td id="r11c15"></td><td id="r11c16"></td><td id="r11c17"></td><td id="r11c18"></td><td id="r11c19"></td><td id="r11c20"></td><td id="steps"></td></tr>
+<tr><td id="r12c0"></td><td id="r12c1"></td><td id="r12c2"></td><td id="r12c3"></td><td id="r12c4"></td><td id="r12c5"></td><td id="r12c6"></td><td id="r12c7"></td><td id="r12c8"></td><td id="r12c9"></td><td id="r12c10"></td><td id="r12c11"></td><td id="r12c12"></td><td id="r12c13"></td><td id="r12c14"></td><td id="r12c15"></td><td id="r12c16"></td><td id="r12c17"></td><td id="r12c18"></td><td id="r12c19"></td><td id="r12c20"></td><td id="pushes"></td></tr>
+<tr><td id="r13c0"></td><td id="r13c1"></td><td id="r13c2"></td><td id="r13c3"></td><td id="r13c4"></td><td id="r13c5"></td><td id="r13c6"></td><td id="r13c7"></td><td id="r13c8"></td><td id="r13c9"></td><td id="r13c10"></td><td id="r13c11"></td><td id="r13c12"></td><td id="r13c13"></td><td id="r13c14"></td><td id="r13c15"></td><td id="r13c16"></td><td id="r13c17"></td><td id="r13c18"></td><td id="r13c19"></td><td id="r13c20"></td><td id="remain"></td></tr>
+<tr><td id="r14c0"></td><td id="r14c1"></td><td id="r14c2"></td><td id="r14c3"></td><td id="r14c4"></td><td id="r14c5"></td><td id="r14c6"></td><td id="r14c7"></td><td id="r14c8"></td><td id="r14c9"></td><td id="r14c10"></td><td id="r14c11"></td><td id="r14c12"></td><td id="r14c13"></td><td id="r14c14"></td><td id="r14c15"></td><td id="r14c16"></td><td id="r14c17"></td><td id="r14c18"></td><td id="r14c19"></td><td id="r14c20"></td><td id="placed"></td></tr>
+<tr><td id="r15c0"></td><td id="r15c1"></td><td id="r15c2"></td><td id="r15c3"></td><td id="r15c4"></td><td id="r15c5"></td><td id="r15c6"></td><td id="r15c7"></td><td id="r15c8"></td><td id="r15c9"></td><td id="r15c10"></td><td id="r15c11"></td><td id="r15c12"></td><td id="r15c13"></td><td id="r15c14"></td><td id="r15c15"></td><td id="r15c16"></td><td id="r15c17"></td><td id="r15c18"></td><td id="r15c19"></td><td id="r15c20"></td><td id="solved"></td></tr>
+<tr><td id="r16c0"></td><td id="r16c1"></td><td id="r16c2"></td><td id="r16c3"></td><td id="r16c4"></td><td id="r16c5"></td><td id="r16c6"></td><td id="r16c7"></td><td id="r16c8"></td><td id="r16c9"></td><td id="r16c10"></td><td id="r16c11"></td><td id="r16c12"></td><td id="r16c13"></td><td id="r16c14"></td><td id="r16c15"></td><td id="r16c16"></td><td id="r16c17"></td><td id="r16c18"></td><td id="r16c19"></td><td id="r16c20"></td></tr>
+<tr><td id="r17c0"></td><td id="r17c1"></td><td id="r17c2"></td><td id="r17c3"></td><td id="r17c4"></td><td id="r17c5"></td><td id="r17c6"></td><td id="r17c7"></td><td id="r17c8"></td><td id="r17c9"></td><td id="r17c10"></td><td id="r17c11"></td><td id="r17c12"></td><td id="r17c13"></td><td id="r17c14"></td><td id="r17c15"></td><td id="r17c16"></td><td id="r17c17"></td><td id="r17c18"></td><td id="r17c19"></td><td id="r17c20"></td></tr>
+<tr><td id="r18c0"></td><td id="r18c1"></td><td id="r18c2"></td><td id="r18c3"></td><td id="r18c4"></td><td id="r18c5"></td><td id="r18c6"></td><td id="r18c7"></td><td id="r18c8"></td><td id="r18c9"></td><td id="r18c10"></td><td id="r18c11"></td><td id="r18c12"></td><td id="r18c13"></td><td id="r18c14"></td><td id="r18c15"></td><td id="r18c16"></td><td id="r18c17"></td><td id="r18c18"></td><td id="r18c19"></td><td id="r18c20"></td></tr>
+<tr><td id="r19c0"></td><td id="r19c1"></td><td id="r19c2"></td><td id="r19c3"></td><td id="r19c4"></td><td id="r19c5"></td><td id="r19c6"></td><td id="r19c7"></td><td id="r19c8"></td><td id="r19c9"></td><td id="r19c10"></td><td id="r19c11"></td><td id="r19c12"></td><td id="r19c13"></td><td id="r19c14"></td><td id="r19c15"></td><td id="r19c16"></td><td id="r19c17"></td><td id="r19c18"></td><td id="r19c19"></td><td id="r19c20"></td></tr>
+<tr><td id="r20c0"></td><td id="r20c1"></td><td id="r20c2"></td><td id="r20c3"></td><td id="r20c4"></td><td id="r20c5"></td><td id="r20c6"></td><td id="r20c7"></td><td id="r20c8"></td><td id="r20c9"></td><td id="r20c10"></td><td id="r20c11"></td><td id="r20c12"></td><td id="r20c13"></td><td id="r20c14"></td><td id="r20c15"></td><td id="r20c16"></td><td id="r20c17"></td><td id="r20c18"></td><td id="r20c19"></td><td id="r20c20"></td></tr>
+</table>
+</center>
+
+<div id="demo">
+
+</body>
+<script>
+
+document.onkeydown = function(event) {
+    var curkey = event.keyCode;
+	switch (curkey) {
+        case 37: push(-1,0); break; // left
+        case 38: push(0,-1); break; // up
+        case 39: push(1,0); break; // right
+        case 40: push(0,1); break;// down
+		case 49: level = 1; initiateBoard(); break;
+		case 50: level = 2; initiateBoard(); break;
+		case 51: level = 3; initiateBoard(); break;
+		case 52: level = 4; initiateBoard(); break;
+		case 53: level = 5; initiateBoard(); break;
+    }
+};
+</script>
+</html>

@@ -1,0 +1,24 @@
+body {
+    font-family: "Helvetica Neue",Helvetica,Arial,sans-serif;
+    font-size: 14px;
+    line-height: 100%;
+    color: #488;
+    background-color: #efe;
+}
+
+button {
+	background-color: #00ffaa; /* Green */
+}
+
+<img style="margin: 0px 0px";>
+
+tr.classname {
+  padding-bottom: 0px; padding-top: 0px;
+}
+.jumbotron {
+    padding-top: 30px;
+    padding-bottom: 30px;
+    margin-bottom: 30px;
+    color: inherit;
+    background-color: #9fd;
+}
